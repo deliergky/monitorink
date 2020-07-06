@@ -1,0 +1,10 @@
+export POSTGRES_PASSWORD=secret
+export POSTGRES_USER=terces
+export POSTGRES_DB=monitorink
+export POSTGRES_PORT=5432
+export POSTGRES_HOST=192.168.178.20
+export KAFKA_HOST=192.168.178.20
+export KAFKA_PORT=9092
+export KAFKA_TOPIC=h3
+export HEARTBEAT_URL=http://www.google.com
+export HEARTBEAT_INTERVAL=1s
