@@ -59,7 +59,9 @@ func main() {
 		producer := monitor.NewHeartbeatProducer(hbConfig.Interval)
 		hb := monitor.NewHeartbeat(hbConfig, producer, consumer)
 		go func() {
-			hb.Beat(ctx)
+			if err := hb.Beat(ctx); err != nil {
+				log.Printf("Error processing heartbeat %v", err)
+			}
 		}()
 
 	} else {
@@ -78,28 +80,32 @@ func main() {
 		if err != nil {
 			log.Panicf("Error creating the kafka producer %v", err)
 		}
-		defer kq.CloseConsumer(ctx)
+		defer func() {
+			if err := kq.CloseConsumer(ctx); err != nil {
+				log.Printf("Error closing kafka consumer %v", err)
+			}
+		}()
 		consumer := monitor.NewResponseConsumer(store)
 		producer := monitor.NewResponseProducer(kq)
 		collector := monitor.NewCollector(producer, consumer)
 		go func() {
-			collector.Collect(ctx)
+			if err := collector.Collect(ctx); err != nil {
+				log.Printf("Error processing collector %v", err)
+			}
 		}()
 	}
-	select {
-	case s := <-signals:
-		log.Printf("Got interrupt signal, now shutting down application  %v", s)
-		cancel()
 
-		// giving enough time to process producers and consumers
-		cleanupContext, cleanupFunc := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cleanupFunc()
+	s := <-signals
+	log.Printf("Got interrupt signal, now shutting down application  %v", s)
+	cancel()
 
-		select {
-		case <-cleanupContext.Done():
-			if !errors.Is(ctx.Err(), context.Canceled) {
-				log.Printf("Application could not be shutdown in a clean way. Error was %v\n", ctx.Err())
-			}
-		}
+	// giving enough time to process producers and consumers
+	cleanupContext, cleanupFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cleanupFunc()
+
+	<-cleanupContext.Done()
+	if !errors.Is(ctx.Err(), context.Canceled) {
+		log.Printf("Application could not be shutdown in a clean way. Error was %v\n", ctx.Err())
 	}
+
 }

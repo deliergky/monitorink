@@ -37,7 +37,10 @@ func (s *HeartbeatTestSuite) SetupTest() {
 	}))
 
 	for i := 0; i < 10; i++ {
-		s.queue.Push(data.ResponseData{})
+		err := s.queue.Push(data.ResponseData{})
+		if err != nil {
+			s.Fail("Error pushing data to queue")
+		}
 	}
 }
 

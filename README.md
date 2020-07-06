@@ -35,7 +35,7 @@ Request a URL processes the results by a pipeline:
 
 ## Running
 
-0. _Requirements:_ docker, docker-compose, >=go1.14
+0. _Requirements:_ docker, docker-compose, >=go1.14, golangci-lint
 1. Update env.sh contents with the appropriate settings
 2. `$ make run-infra`
 3. `$ make migrate`

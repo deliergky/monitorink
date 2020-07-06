@@ -32,7 +32,7 @@ func check(config HeartbeatConfig) pipeline.ProcessorFunc {
 		if err != nil {
 			return nil, err
 		}
-		rd.ResponseTime = time.Now().Sub(start).Milliseconds()
+		rd.ResponseTime = time.Since(start).Milliseconds()
 		defer r.Body.Close()
 		rd.StatusCode = r.StatusCode
 		return rd, nil

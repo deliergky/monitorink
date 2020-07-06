@@ -1,3 +1,5 @@
+lint:
+	golangci-lint --deadline=5m run --enable=goimports --enable=golint --color=always --out-format=tab  ./...
 migrate:
 	docker run --rm -v $(shell pwd)/flyway/sql:/flyway/sql -v $(shell pwd)/flyway/conf:/flyway/conf flyway/flyway:6.5.0-alpine migrate
 test:
