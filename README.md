@@ -45,6 +45,7 @@ Request a URL processes the results by a pipeline:
 ## Todos
 
 - [ ] Extend tests
+- [ ] Add regex matcher stage to pipeline
 - [ ] Improve error handling
 - [ ] Containerize produce and consumer
 - [ ] Add cloud provider support (Aiven, Confluent etc.) for queue and store
