@@ -46,6 +46,7 @@ Request a URL processes the results by a pipeline:
 
 - [ ] Extend tests
 - [ ] Add regex matcher stage to pipeline
+- [ ] Improve offset handling in consumer pipelin
 - [ ] Improve error handling
 - [ ] Containerize produce and consumer
 - [ ] Add cloud provider support (Aiven, Confluent etc.) for queue and store
