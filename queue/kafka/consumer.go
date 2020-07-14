@@ -1,9 +1,8 @@
-package queue
+package kafka
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -15,13 +14,12 @@ import (
 
 // KafkaConfig is passed to a KafkaQueue to initialize the producer and the consumer
 type KafkaConfig struct {
-	Host  string
-	Port  int
-	Topic string
+	Brokers string
+	Topic   string
 }
 
-// KafkaQueue implements the Queue interface with Kafka specific methods
-type KafkaQueue struct {
+// KafkaConsumer implements the Queue interface with Kafka specific methods
+type KafkaConsumer struct {
 	config         KafkaConfig
 	consumer       sarama.PartitionConsumer
 	producer       sarama.AsyncProducer
@@ -30,22 +28,18 @@ type KafkaQueue struct {
 	consumerConfig *sarama.Config
 }
 
-// NewKafkaQueue creates a new kafka queue with the provided parameters
-func NewKafkaQueue(config KafkaConfig, producerConfig *sarama.Config, consumerConfig *sarama.Config) *KafkaQueue {
-	return &KafkaQueue{
+// NewKafkaConsumer creates a new kafka queue with the provided parameters
+func NewKafkaConsumer(config KafkaConfig, producerConfig *sarama.Config, consumerConfig *sarama.Config) *KafkaConsumer {
+	return &KafkaConsumer{
 		config:         config,
 		producerConfig: producerConfig,
 		consumerConfig: consumerConfig,
 	}
 }
 
-func (q *KafkaQueue) connectionString() string {
-	return fmt.Sprintf("%s:%d", q.config.Host, q.config.Port)
-}
-
 // CreateConsumer initializes a new Kafka PartitionConsumer
-func (q *KafkaQueue) CreateConsumer(ctx context.Context) error {
-	master, err := sarama.NewConsumer(strings.Split(q.connectionString(), ","), q.consumerConfig)
+func (q *KafkaConsumer) CreateConsumer(ctx context.Context) error {
+	master, err := sarama.NewConsumer(strings.Split(q.config.Brokers, ","), q.consumerConfig)
 	if err != nil {
 		return err
 	}
@@ -59,10 +53,10 @@ func (q *KafkaQueue) CreateConsumer(ctx context.Context) error {
 }
 
 // CreateProducder initializes a new Kafka AsyncProducer
-func (q *KafkaQueue) CreateProducer(ctx context.Context) error {
+func (q *KafkaConsumer) CreateProducer(ctx context.Context) error {
 
 	producer, err :=
-		sarama.NewAsyncProducer([]string{q.connectionString()}, q.producerConfig)
+		sarama.NewAsyncProducer(strings.Split(q.config.Brokers, ","), q.producerConfig)
 	if err != nil {
 		return err
 	}
@@ -71,16 +65,16 @@ func (q *KafkaQueue) CreateProducer(ctx context.Context) error {
 }
 
 // CloseConsumer closes the consumer
-func (q *KafkaQueue) CloseConsumer(ctx context.Context) error {
+func (q *KafkaConsumer) CloseConsumer(ctx context.Context) error {
 	return q.consumer.Close()
 }
 
 // CloseProducer closes the producer
-func (q *KafkaQueue) CloseProducer(ctx context.Context) {
+func (q *KafkaConsumer) CloseProducer(ctx context.Context) {
 	q.producer.AsyncClose()
 }
 
-func (q *KafkaQueue) Push(d data.ResponseData) error {
+func (q *KafkaConsumer) Push(d data.ResponseData) error {
 
 	var err error
 	var wg sync.WaitGroup
@@ -109,15 +103,15 @@ func (q *KafkaQueue) Push(d data.ResponseData) error {
 	return err
 }
 
-func (q *KafkaQueue) Pop() (data.ResponseData, error) {
+func (q *KafkaConsumer) Pop() (data.ResponseData, error) {
 	return q.Current(), nil
 }
 
-func (q *KafkaQueue) Current() data.ResponseData {
+func (q *KafkaConsumer) Current() data.ResponseData {
 	return q.current
 }
 
-func (q *KafkaQueue) Next(ctx context.Context) bool {
+func (q *KafkaConsumer) Next(ctx context.Context) bool {
 	select {
 	case <-ctx.Done():
 		return false

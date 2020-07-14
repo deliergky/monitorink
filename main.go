@@ -12,7 +12,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/deliergky/monitorink/monitor"
-	"github.com/deliergky/monitorink/queue"
+	"github.com/deliergky/monitorink/queue/kafka"
 	"github.com/deliergky/monitorink/store"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -22,7 +22,7 @@ func main() {
 	runner := flag.String("run", "producer", "producer|consumer")
 	flag.Parse()
 
-	kafkaConfig := queue.KafkaConfig{}
+	kafkaConfig := kafka.KafkaConfig{}
 	err := envconfig.Process("kafka", &kafkaConfig)
 
 	if err != nil {
@@ -37,7 +37,8 @@ func main() {
 	producerConfig.Producer.Return.Successes = true
 	producerConfig.Producer.Return.Errors = true
 
-	kq := queue.NewKafkaQueue(kafkaConfig, producerConfig, consumerConfig)
+	kq := kafka.NewKafkaConsumer(kafkaConfig, producerConfig, consumerConfig)
+	kg := kafka.NewKafkaConsumerGroup(kafkaConfig, producerConfig, consumerConfig)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	signals := make(chan os.Signal, 1)
@@ -64,7 +65,7 @@ func main() {
 			}
 		}()
 
-	} else {
+	} else if *runner == "consumer" {
 		postgresConfig := store.PostgresConfig{}
 		err := envconfig.Process("postgres", &postgresConfig)
 
@@ -87,6 +88,36 @@ func main() {
 		}()
 		consumer := monitor.NewResponseConsumer(store)
 		producer := monitor.NewResponseProducer(kq)
+		collector := monitor.NewCollector(producer, consumer)
+		go func() {
+			if err := collector.Collect(ctx); err != nil {
+				log.Printf("Error processing collector %v", err)
+			}
+		}()
+	} else {
+
+		postgresConfig := store.PostgresConfig{}
+		err := envconfig.Process("postgres", &postgresConfig)
+
+		if err != nil {
+			log.Panicf("Could not parse db config %v", err)
+		}
+		store, err := store.NewPostgresStore(ctx, postgresConfig)
+		if err != nil {
+			log.Panicf("Error creating db connection %v", err)
+		}
+		defer store.Close()
+		err = kg.CreateConsumer(ctx)
+		if err != nil {
+			log.Panicf("Error creating the kafka producer %v", err)
+		}
+		defer func() {
+			if err := kg.CloseConsumer(ctx); err != nil {
+				log.Printf("Error closing kafka consumer %v", err)
+			}
+		}()
+		consumer := monitor.NewResponseConsumer(store)
+		producer := monitor.NewResponseProducer(kg)
 		collector := monitor.NewCollector(producer, consumer)
 		go func() {
 			if err := collector.Collect(ctx); err != nil {
